@@ -42,6 +42,19 @@ def ui_status(**fields):
     }
 
 
+def cause_code(code):
+    return {
+        "id": "/system/appliance/causecode",
+        "type": "floatValue",
+        "recordable": 0,
+        "writeable": 0,
+        "value": code,
+        "unitOfMeasure": "",
+        "minValue": 200,
+        "maxValue": 65535,
+    }
+
+
 class NefitNotificationTests(unittest.IsolatedAsyncioTestCase):
     async def test_display_code_is_polled(self):
         connector, sensors = nefit_sensors(
@@ -83,6 +96,18 @@ class NefitBoilerIndicatorTests(unittest.IsolatedAsyncioTestCase):
         _, sensors = nefit_sensors({"/system/appliance/actualPower": {"value": 100}})
         await sensors["actualPower"].update()
         self.assertEqual(sensors["actualPower"].state, 100)
+
+
+class NefitBoilerStatusCodeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_reports_the_cause_code(self):
+        for code in (203, 283, 201, 204):
+            with self.subTest(code=code):
+                connector, sensors = nefit_sensors(
+                    {"/system/appliance/causecode": cause_code(code)}
+                )
+                await sensors["boiler_status_code"].update()
+                connector.get.assert_awaited_once_with("/system/appliance/causecode")
+                self.assertEqual(sensors["boiler_status_code"].state, code)
 
 
 if __name__ == "__main__":
