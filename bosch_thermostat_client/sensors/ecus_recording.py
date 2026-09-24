@@ -98,9 +98,16 @@ class EcusRecordingSensor(Sensor):
         try:
             if self.page_number > 0:
                 self._entry_data = {}
-                for i in range(self.page_number, self.page_number + 1):
-                    result = await self._connector.get(self.build_uri(page_number=i))
-                    self.process_results(result, time)
+                pages = [self.page_number]
+                if self.page_number > 1:
+                    # A page holds 32 days. The day the pointer moves on to a new
+                    # page, that page holds no day yet and the last recorded day is
+                    # still the last row of the previous one.
+                    pages.append(self.page_number - 1)
+                for page in pages:
+                    result = await self._connector.get(self.build_uri(page_number=page))
+                    if self.process_results(result, time):
+                        break
         except DeviceException as err:
             _LOGGER.error(
                 f"Can't update data for {self.name}. Trying uri: {self._data[self.attr_id][URI]}. Error message: {err}"
